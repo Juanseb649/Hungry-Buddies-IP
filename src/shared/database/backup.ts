@@ -1,7 +1,7 @@
 import type { HungryBuddiesDb } from './db'
 
 const APP_ID = 'hungry-buddies'
-const TABLES = ['players', 'foods', 'matches', 'match_players', 'food_selections'] as const
+const TABLES = ['players', 'foods', 'menus', 'matches', 'match_players', 'food_selections'] as const
 
 export interface BackupFile {
   app: typeof APP_ID
@@ -23,6 +23,7 @@ export async function exportBackup(db: HungryBuddiesDb, now: string): Promise<Ba
 }
 
 export function parseBackup(text: string): BackupFile {
+  // Valida la forma; la versión se revisa al importar contra la base abierta.
   let data: unknown
   try {
     data = JSON.parse(text)
@@ -45,6 +46,9 @@ export function parseBackup(text: string): BackupFile {
 export async function importBackup(db: HungryBuddiesDb, file: BackupFile): Promise<void> {
   if (file.schemaVersion > db.verno) {
     throw new Error('Este respaldo viene de una versión más nueva de la app. Actualiza la app e inténtalo otra vez.')
+  }
+  if (file.schemaVersion < db.verno) {
+    throw new Error('Este respaldo es de una versión anterior de la app y ya no se puede restaurar.')
   }
   await db.transaction('rw', TABLES.map((t) => db.table(t)), async () => {
     for (const t of TABLES) {

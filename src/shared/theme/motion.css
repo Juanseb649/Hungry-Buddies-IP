@@ -1,0 +1,347 @@
+/* Navegación, transiciones y salpicaduras. Todo se apaga con prefers-reduced-motion (ver app.css). */
+
+/* Menú hamburguesa */
+
+.burger {
+  width: var(--tap);
+  height: var(--tap);
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  border: var(--line) solid var(--tinta);
+  border-radius: 999px;
+  background: var(--plato);
+  cursor: pointer;
+}
+
+.burger span {
+  display: block;
+  width: 20px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: var(--tinta);
+}
+
+.drawer {
+  margin: 0 0 0 auto;
+  width: min(86vw, 340px);
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tinta);
+}
+
+.drawer::backdrop {
+  background: rgb(22 33 31 / 0.5);
+  animation: fade-in 220ms ease-out both;
+}
+
+.drawer[data-closing]::backdrop {
+  animation: fade-out 220ms ease-in both;
+}
+
+.drawer__panel {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: calc(14px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));
+  background: var(--plato);
+  border-left: 3px solid var(--tinta);
+  border-radius: 24px 0 0 24px;
+}
+
+.drawer[open] .drawer__panel {
+  animation: drawer-in 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.drawer[data-closing] .drawer__panel {
+  animation: drawer-out 220ms ease-in both;
+}
+
+.drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer__brand {
+  font-family: var(--font-display);
+  font-size: var(--t-m);
+}
+
+.drawer__close {
+  width: var(--tap);
+  height: var(--tap);
+  border: var(--line) solid var(--borde);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.drawer__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.drawer__nav a,
+.drawer__settings {
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: var(--t-l);
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.drawer__nav a.active,
+.drawer__settings.active {
+  background: var(--tinta);
+  color: var(--plato);
+}
+
+.drawer__people {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 16px;
+  padding: 4px 0 4px 12px;
+  border-left: var(--line) solid var(--borde);
+}
+
+.drawer__people a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 14px;
+  text-decoration: none;
+}
+
+.drawer__people a.active {
+  background: var(--mesa);
+}
+
+.drawer__person {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer__wins {
+  font-size: var(--t-xs);
+  color: var(--tinta-suave);
+}
+
+.drawer__settings {
+  margin-top: auto;
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes drawer-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Transiciones entre pantallas (View Transitions API) */
+
+.topbar {
+  view-transition-name: topbar;
+}
+
+::view-transition-old(root) {
+  animation: vt-out 160ms ease-in both;
+}
+
+::view-transition-new(root) {
+  animation: vt-in 300ms cubic-bezier(0.2, 0.8, 0.2, 1) 60ms both;
+}
+
+@keyframes vt-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* Pasos del asistente de nueva partida */
+
+.step {
+  animation: step-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    translate: 28px 0;
+  }
+}
+
+/* Salpicadura de condimento al empezar y terminar una partida */
+
+.splat {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.splat__blob {
+  position: absolute;
+  width: 60vmax;
+  height: 60vmax;
+}
+
+.splat--a {
+  fill: var(--ketchup);
+}
+
+.splat--b {
+  fill: var(--mostaza);
+}
+
+.splat[data-phase='in'] .splat__blob--back {
+  animation: splat-in 460ms cubic-bezier(0.3, 1.25, 0.5, 1) both;
+}
+
+.splat[data-phase='in'] .splat__blob--front {
+  animation: splat-in 420ms cubic-bezier(0.3, 1.25, 0.5, 1) 100ms both;
+}
+
+.splat[data-phase='out'] .splat__blob {
+  transform: scale(3.4);
+  animation: splat-out 520ms cubic-bezier(0.6, 0, 0.8, 0.4) both;
+}
+
+.splat[data-phase='out'] .splat__blob--back {
+  animation-delay: 80ms;
+}
+
+@keyframes splat-in {
+  from {
+    transform: scale(0) rotate(-50deg);
+  }
+  to {
+    transform: scale(3.4) rotate(0);
+  }
+}
+
+@keyframes splat-out {
+  to {
+    transform: scale(4.6) rotate(14deg);
+    opacity: 0;
+  }
+}
+
+/* Pantalla de bienvenida */
+
+.launch {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--mesa);
+}
+
+.launch[data-leaving] {
+  animation: launch-out 450ms cubic-bezier(0.7, 0, 0.3, 1) both;
+}
+
+.launch__splat {
+  position: absolute;
+  width: 92vmin;
+  height: 92vmin;
+  animation: launch-splat 650ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+
+.launch__splat--front {
+  width: 70vmin;
+  height: 70vmin;
+  animation-delay: 110ms;
+}
+
+.launch__title {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 15vw, 5rem);
+  line-height: 0.95;
+}
+
+.launch__title span {
+  background: var(--p);
+  color: var(--on-p);
+  padding: 0.08em 0.3em 0.14em;
+  border-radius: 0.5em;
+  border: 3px solid var(--tinta);
+}
+
+.launch__title span[data-slot='a'] {
+  rotate: -3deg;
+  animation: slab-drop 560ms cubic-bezier(0.3, 1.5, 0.5, 1) 260ms both;
+}
+
+.launch__title span[data-slot='b'] {
+  rotate: 1.5deg;
+  margin-top: -0.12em;
+  animation: slab-drop 560ms cubic-bezier(0.3, 1.5, 0.5, 1) 400ms both;
+}
+
+@keyframes launch-splat {
+  from {
+    transform: scale(0) rotate(-40deg);
+  }
+}
+
+@keyframes slab-drop {
+  from {
+    translate: 0 -70vh;
+  }
+}
+
+@keyframes launch-out {
+  to {
+    clip-path: circle(0% at 50% 50%);
+  }
+}

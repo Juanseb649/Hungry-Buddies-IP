@@ -16,8 +16,8 @@ export function HistoryPage() {
     return (
       <div className="page">
         <h1 className="page-title">Historial</h1>
-        <p>Todavía no hay partidas cerradas. Cuando cierren una, el resultado se guarda aquí.</p>
-        <Link className="btn btn--primary btn--big" to="/match/new">
+        <p>Todavía no hay partidas terminadas. Cuando terminen una, el resultado se guarda aquí.</p>
+        <Link className="btn btn--primary btn--big" to="/match/new" viewTransition>
           Nueva partida
         </Link>
       </div>
@@ -30,7 +30,7 @@ export function HistoryPage() {
 
       <section className="records">
         {data.bestMatch && (
-          <Link className="record" to={`/match/${data.bestMatch.matchId}/result`}>
+          <Link className="record" to={`/match/${data.bestMatch.matchId}/result`} viewTransition>
             <span className="record__value">{formatPoints(data.bestMatch.points)}</span>
             <span className="record__label">Récord en una partida, de {data.bestMatch.displayName}</span>
           </Link>
@@ -62,7 +62,9 @@ export function HistoryPage() {
             {data.players.map((p) => (
               <tr key={p.playerId}>
                 <th scope="row">
-                  {p.displayName}
+                  <Link to={`/profiles/${p.playerId}`} viewTransition>
+                    {p.displayName}
+                  </Link>
                   <span className="table__sub">{pointsLabel(p.totalPoints)} en total</span>
                 </th>
                 <td>{p.wins}</td>

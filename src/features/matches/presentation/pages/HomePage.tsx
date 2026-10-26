@@ -8,9 +8,8 @@ import { matchPath } from '../components/match-ui'
 import type { Match } from '../../domain/entities/match'
 
 const STATUS_LABEL: Record<Match['status'], string> = {
-  planning: 'Eligiendo comida',
-  eating: 'Comiendo',
-  finished: 'Cerrada',
+  playing: 'Jugando',
+  finished: 'Terminada',
 }
 
 export function HomePage() {
@@ -27,10 +26,10 @@ export function HomePage() {
           <span data-slot="b">Buddies</span>
         </h1>
         <p className="hero__lede">
-          Dos amigos, una mesa. Cada uno dice qué se va a comer, después cuenta lo que de verdad se comió, y
-          gana la pila de platos más alta.
+          Dos amigos, una mesa. Eligen el menú, cada uno cuenta lo que se va comiendo y gana la pila de
+          platos más alta.
         </p>
-        <Link className="btn btn--primary btn--big" to="/match/new">
+        <Link className="btn btn--primary btn--big" to="/match/new" viewTransition>
           Nueva partida
         </Link>
       </section>
@@ -54,7 +53,7 @@ export function HomePage() {
           <ul className="match-list">
             <MatchRow match={last} />
           </ul>
-          <Link className="link-btn" to="/history">
+          <Link className="link-btn" to="/history" viewTransition>
             Ver todo el historial
           </Link>
         </section>
@@ -68,7 +67,7 @@ export function MatchRow({ match }: { match: Match }) {
   const finished = match.status === 'finished'
   return (
     <li>
-      <Link className="match-row" to={matchPath(match)}>
+      <Link className="match-row" to={matchPath(match)} viewTransition>
         <span className="match-row__players">
           <span data-slot="a" data-winner={(finished && winner === 'a') || undefined}>
             {match.players.a.displayName} <b>{formatPoints(points.a)}</b>

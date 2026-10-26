@@ -9,9 +9,11 @@ a un jugador.
 ## Lo memorable
 
 **La pila de platos.** Cada punto es un plato. En el resultado, los platos
-de cada jugador se apilan uno sobre otro y gana la pila más alta. Es el
-único momento animado de la app (y respeta `prefers-reduced-motion`). Todo
-lo demás es tranquilo y funcional.
+de cada jugador se apilan uno sobre otro y gana la pila más alta.
+
+**La salpicadura.** Al empezar y al terminar una partida, una salpicadura de
+ketchup y mostaza cubre la pantalla y se abre hacia la siguiente. Al terminar,
+el color del ganador va adelante.
 
 ## Color
 
@@ -29,9 +31,11 @@ el contraste.
 
 ## Tipografía
 
-- **Bagel Fat One**: títulos, nombres de jugadores y marcadores. Redonda,
-  gorda, como letrero de diner. Solo en tamaños grandes.
-- **Figtree**: todo el texto de interfaz y lectura.
+- **Bagel Fat One**: títulos y nombres en campos de jugador. Redonda, gorda,
+  como letrero de diner. Solo en tamaños grandes. Su "0" casi no tiene hueco y
+  se lee como una mancha, así que **nunca se usa para números**.
+- **Figtree**: todo el texto de interfaz y lectura. Los números (marcador,
+  contador, estadísticas) van en Figtree 800 con cifras tabulares.
 
 Escala (razón ~1.25): 14 / 16 / 20 / 25 / 31 / 39 / 61 px. Interlineado
 1.5 para texto, 1.0–1.1 para Bagel. Sin mayúsculas sostenidas en
@@ -65,4 +69,8 @@ zona del pulgar.
 2. Formas de plato: radios grandes en lo que se toca, bordes de 2 px.
    Nada de sombras grises difusas.
 3. Botones grandes (mínimo 48 px) y texto que dice exactamente qué pasa.
-4. Los números de puntos siempre en Bagel; el resto, en Figtree.
+4. Los números siempre en Figtree 800; Bagel solo para palabras.
+5. Movimiento con intención: bienvenida al abrir, salpicadura de condimento
+   al empezar y al terminar una partida (con el color del ganador), pilas de
+   platos en el resultado, y transiciones suaves entre pantallas. Todo se
+   apaga con `prefers-reduced-motion`.

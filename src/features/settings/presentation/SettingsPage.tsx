@@ -1,4 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
+import { Link } from 'react-router'
+import { menuFoods } from '../../food-catalog/domain/menu'
 import { useContainer } from '../../../app/container'
 import { useCatalog } from '../../food-catalog/application/use-catalog'
 import { MAX_POINTS_PER_PORTION, validateFoodItem, type FoodItem } from '../../food-catalog/domain/food-item'
@@ -10,10 +12,47 @@ export function SettingsPage() {
   return (
     <div className="page">
       <h1 className="page-title">Ajustes</h1>
+      <MenusSection />
       <CatalogEditor />
       <StorageSection />
       <BackupSection />
     </div>
+  )
+}
+
+function MenusSection() {
+  const { menus, catalog } = useContainer()
+  const { data } = useAsync(async () => {
+    const [all, foods] = await Promise.all([menus.list(), catalog.list()])
+    return all.map((menu) => ({ menu, foods: menuFoods(menu, foods) }))
+  }, [menus, catalog])
+
+  return (
+    <section className="block">
+      <h2 className="block__title">Menús</h2>
+      <p className="hint">Al empezar una partida eligen uno de estos menús. Solo se cuentan sus comidas.</p>
+      <ul className="match-list">
+        {data?.map(({ menu, foods }) => (
+          <li key={menu.id}>
+            <Link className="menu-card" to={`/settings/menus/${menu.id}`} viewTransition>
+              <span className="menu-card__emoji" aria-hidden="true">
+                {menu.emoji}
+              </span>
+              <span className="menu-card__text">
+                <span className="menu-card__name">{menu.name}</span>
+                <span className="menu-card__foods">
+                  {foods.length === 0 ? 'Sin comidas: edítalo para poder jugar' : foods.map((f) => f.emoji).join(' ')}
+                </span>
+              </span>
+              <span className="menu-card__edit">Editar</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <Link className="btn btn--ghost" to="/settings/menus/new" viewTransition>
+        Crear menú
+      </Link>
+    </section>
   )
 }
 
@@ -40,7 +79,7 @@ function PointsInput({ value, onChange, label }: { value: number; onChange: (v: 
 }
 
 function CatalogEditor() {
-  const { catalog, ids } = useContainer()
+  const { catalog, menus, ids } = useContainer()
   const { data, loading, reload, setData } = useCatalog()
   const [draft, setDraft] = useState({ emoji: '', name: '', points: 1 })
   const [error, setError] = useState<string | null>(null)
@@ -130,11 +169,18 @@ function CatalogEditor() {
       <ConfirmDialog
         open={toDelete !== null}
         title={`¿Quitar ${toDelete?.name ?? ''} del catálogo?`}
-        body="Ya no se podrá elegir en partidas nuevas. Las partidas guardadas no cambian."
+        body="Se quita también de los menús que la tengan. Las partidas guardadas no cambian."
         confirmLabel="Quitar del catálogo"
         danger
         onConfirm={async () => {
-          if (toDelete) await catalog.remove(toDelete.id)
+          if (toDelete) {
+            await catalog.remove(toDelete.id)
+            for (const menu of await menus.list()) {
+              if (menu.foodIds.includes(toDelete.id)) {
+                await menus.save({ ...menu, foodIds: menu.foodIds.filter((f) => f !== toDelete.id) })
+              }
+            }
+          }
           setToDelete(null)
           await reload()
         }}

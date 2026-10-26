@@ -2,25 +2,19 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { useMatch } from '../../application/hooks/use-match'
 import { useContainer } from '../../../../app/container'
 import { Loading } from '../../../../shared/components/ui'
-import { calculateMatchResult, consumedPointsOf } from '../../domain/scoring'
+import { prefersReducedMotion, useSplashNavigate } from '../../../../shared/components/splash'
+import { calculateMatchResult, favoriteOf, pointsOf } from '../../domain/scoring'
 import { PLAYER_SLOTS, type Match, type PlayerSlot } from '../../domain/entities/match'
 import { formatDate, formatQuantity, pointsLabel, portionsLabel } from '../../../../shared/utils/format'
+import { formatDuration } from '../../../../shared/utils/use-elapsed'
 import { matchPath, MatchNotFound, PlateStack, plateHeightFor } from '../components/match-ui'
 
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-/** Una línea por jugador comparando lo que dijo con lo que hizo. */
-export function planVerdict(match: Match, slot: PlayerSlot): string {
+/** Una línea por jugador con lo que más comió. */
+export function favoriteLine(match: Match, slot: PlayerSlot): string {
   const name = match.players[slot].displayName
-  const mine = match.selections.filter((s) => s.slot === slot)
-  const planned = mine.reduce((t, s) => t + s.plannedQuantity, 0)
-  const eaten = mine.reduce((t, s) => t + (s.consumedQuantity ?? 0), 0)
-  const diff = eaten - planned
-  if (eaten === 0) return `${name} no probó bocado.`
-  if (diff === 0) return `${name} cumplió su plan al pie de la letra.`
-  if (diff > 0) return `${name} se comió ${portionsLabel(diff)} más de lo que dijo.`
-  return `${name} dejó ${portionsLabel(-diff)} en el plato.`
+  const fav = favoriteOf(match, slot)
+  if (!fav) return `${name} no probó bocado.`
+  return `${name} le dio con todo a ${fav.foodEmoji} ${fav.foodName}: ${portionsLabel(fav.consumedQuantity)}.`
 }
 
 export function ResultPage() {
@@ -28,6 +22,7 @@ export function ResultPage() {
   const m = useMatch(id)
   const { matches } = useContainer()
   const navigate = useNavigate()
+  const splashTo = useSplashNavigate()
 
   if (m.loading) return <Loading />
   if (m.loadError || !m.match) return <MatchNotFound message={m.loadError?.message ?? ''} />
@@ -36,11 +31,20 @@ export function ResultPage() {
 
   const { points, winner } = calculateMatchResult(match)
   const margin = Math.abs(points.a - points.b)
+  const plateHeight = plateHeightFor(points.a, points.b)
   const animate = !prefersReducedMotion()
+  const duration = formatDuration(Date.parse(match.finishedAt ?? match.startedAt) - Date.parse(match.startedAt))
 
   async function rematch() {
-    const next = await matches.createMatch(match.players.a.displayName, match.players.b.displayName)
-    navigate(matchPath(next))
+    const { a, b } = match.players
+    try {
+      const next = await matches.createMatch(match.menu.id, a.displayName, b.displayName)
+      await splashTo(matchPath(next))
+    } catch {
+      // El menú pudo haberse borrado: que elijan otro con los mismos nombres.
+      const q = new URLSearchParams({ a: a.displayName, b: b.displayName })
+      navigate(`/match/new?${q}`, { viewTransition: true })
+    }
   }
 
   return (
@@ -65,7 +69,7 @@ export function ResultPage() {
             name={match.players[slot].displayName}
             isWinner={winner === slot}
             animate={animate}
-            plateHeight={plateHeightFor(points.a, points.b)}
+            plateHeight={plateHeight}
           />
         ))}
       </div>
@@ -73,7 +77,7 @@ export function ResultPage() {
       <ul className="verdicts">
         {PLAYER_SLOTS.map((slot) => (
           <li key={slot} data-slot={slot}>
-            {planVerdict(match, slot)}
+            {favoriteLine(match, slot)}
           </li>
         ))}
       </ul>
@@ -83,27 +87,30 @@ export function ResultPage() {
           <h2 className="block__title">Lo que comió {match.players[slot].displayName}</h2>
           <ul>
             {match.selections
-              .filter((s) => s.slot === slot && (s.consumedQuantity ?? 0) > 0)
+              .filter((s) => s.slot === slot && s.consumedQuantity > 0)
               .map((s) => (
                 <li key={s.id}>
                   <span aria-hidden="true">{s.foodEmoji}</span>
                   <span className="breakdown__name">
-                    {formatQuantity(s.consumedQuantity ?? 0)} × {s.foodName}
+                    {formatQuantity(s.consumedQuantity)} × {s.foodName}
                   </span>
-                  <span className="breakdown__pts">{pointsLabel(consumedPointsOf(s))}</span>
+                  <span className="breakdown__pts">{pointsLabel(pointsOf(s))}</span>
                 </li>
               ))}
           </ul>
         </section>
       ))}
 
-      <p className="result__date">Partida cerrada el {formatDate(match.finishedAt ?? match.startedAt)}</p>
+      <p className="result__date">
+        Menú {match.menu.emoji} {match.menu.name}. Duró {duration} y terminó el{' '}
+        {formatDate(match.finishedAt ?? match.startedAt)}.
+      </p>
 
       <div className="actions">
         <button type="button" className="btn btn--primary btn--big" onClick={rematch}>
           Jugar la revancha
         </button>
-        <Link className="btn btn--ghost" to="/history">
+        <Link className="btn btn--ghost" to="/history" viewTransition>
           Ver historial
         </Link>
       </div>

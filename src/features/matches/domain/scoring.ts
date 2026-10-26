@@ -3,18 +3,13 @@ import type { FoodSelection, Match, PlayerSlot } from './entities/match'
 export type Winner = PlayerSlot | 'tie'
 
 export interface MatchResult {
-  /** Puntos de lo comido (o de lo planeado, si aún no se confirma). */
   points: Record<PlayerSlot, number>
-  plannedPoints: Record<PlayerSlot, number>
+  portions: Record<PlayerSlot, number>
   winner: Winner
 }
 
-export function plannedPointsOf(selection: FoodSelection): number {
-  return selection.plannedQuantity * selection.pointsPerPortionSnapshot
-}
-
-export function consumedPointsOf(selection: FoodSelection): number {
-  return (selection.consumedQuantity ?? selection.plannedQuantity) * selection.pointsPerPortionSnapshot
+export function pointsOf(selection: FoodSelection): number {
+  return selection.consumedQuantity * selection.pointsPerPortionSnapshot
 }
 
 function sumBy(match: Match, slot: PlayerSlot, fn: (s: FoodSelection) => number): number {
@@ -22,8 +17,20 @@ function sumBy(match: Match, slot: PlayerSlot, fn: (s: FoodSelection) => number)
 }
 
 export function calculateMatchResult(match: Match): MatchResult {
-  const points = { a: sumBy(match, 'a', consumedPointsOf), b: sumBy(match, 'b', consumedPointsOf) }
-  const plannedPoints = { a: sumBy(match, 'a', plannedPointsOf), b: sumBy(match, 'b', plannedPointsOf) }
+  const points = { a: sumBy(match, 'a', pointsOf), b: sumBy(match, 'b', pointsOf) }
+  const portions = {
+    a: sumBy(match, 'a', (s) => s.consumedQuantity),
+    b: sumBy(match, 'b', (s) => s.consumedQuantity),
+  }
   const winner: Winner = points.a === points.b ? 'tie' : points.a > points.b ? 'a' : 'b'
-  return { points, plannedPoints, winner }
+  return { points, portions, winner }
+}
+
+/** Lo que más porciones sumó un jugador en la partida. */
+export function favoriteOf(match: Match, slot: PlayerSlot): FoodSelection | null {
+  return (
+    match.selections
+      .filter((s) => s.slot === slot && s.consumedQuantity > 0)
+      .sort((x, y) => y.consumedQuantity - x.consumedQuantity)[0] ?? null
+  )
 }

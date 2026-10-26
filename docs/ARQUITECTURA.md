@@ -2,7 +2,7 @@
 
 ## Documento de arquitectura, flujo y stack tecnológico
 
-**Versión:** 2.0\
+**Versión:** 2.1\
 **Plataforma objetivo:** aplicación web (navegadores de escritorio y
 móvil), instalable como PWA\
 **Despliegue:** Vercel (sitio estático)\
@@ -14,12 +14,18 @@ en la primera versión.
 > Expo SQLite por IndexedDB (vía Dexie.js), Expo por Vite, y la
 > distribución por APK/TestFlight por un despliegue en Vercel. El
 > dominio, los casos de uso y la arquitectura hexagonal no cambian.
+>
+> **Cambio en la v2.1:** se quita la fase de "plan contra lo que de verdad
+> se comió". Ahora la partida empieza eligiendo un **menú guardado** en
+> Ajustes y cada jugador lleva un **contador en vivo** de lo que se come.
+> Se añaden **perfiles** editables, un menú de navegación tipo
+> hamburguesa, una pantalla de bienvenida y transiciones animadas.
 
 ## 1. Propósito
 
 Hungry Buddies IP es una aplicación web informal para que dos personas
-comparen la comida que planean consumir y registren lo que realmente
-comieron. La app muestra puntuaciones, resultados e historial de
+compitan comiendo: eligen un menú, cada una cuenta en vivo lo que se va
+comiendo y gana quien sume más puntos. La app muestra puntuaciones, resultados e historial de
 partidas. La primera versión funciona sin conexión (una vez cargada) y
 guarda los datos en el navegador del dispositivo.
 
@@ -29,11 +35,11 @@ guarda los datos en el navegador del dispositivo.
 -   Se abre desde una URL pública en Vercel; se puede "instalar" en la
     pantalla de inicio del teléfono como PWA.
 -   Permite iniciar una partida local con dos jugadores, usando nombres
-    o apodos editables.
--   Permite elegir alimentos de un catálogo y especificar cantidades o
-    porciones.
--   Diferencia entre comida planeada y comida consumida: cada jugador
-    confirma lo que realmente comió.
+    o apodos; cada persona tiene un perfil con avatar y estadísticas.
+-   En Ajustes se guardan menús con nombre (por ejemplo "Noche
+    mexicana"), armados con comidas del catálogo.
+-   Cada partida usa un menú y un contador en vivo: cada jugador suma una
+    porción cada vez que se come algo del menú.
 -   Calcula una puntuación y muestra el resultado de la partida.
 -   Guarda las partidas anteriores, estadísticas y récords localmente en
     el navegador (IndexedDB).
@@ -52,23 +58,28 @@ regla podría cambiarse por peso o porciones normalizadas.
 
 ## 3. Flujo principal de usuario
 
-1.  **Inicio:** crear una partida o revisar el historial.
-2.  **Jugadores:** definir los dos nombres o apodos.
-3.  **Selección de comida:** cada jugador elige los alimentos que planea
-    comer y las cantidades.
-4.  **Confirmación:** después de comer, cada jugador registra el consumo
-    real y puede ajustar cantidades.
-5.  **Resultado:** la aplicación calcula puntos, declara el ganador de
-    esa partida y muestra un resumen divertido.
-6.  **Historial:** consultar partidas anteriores, récords y
-    estadísticas.
-7.  **Configuración (opcional):** editar el catálogo, puntos por porción,
-    preferencias locales y exportar/importar una copia de seguridad.
+1.  **Bienvenida:** al abrir la app, una pantalla corta con el logo.
+2.  **Menú (¿qué se van a comer?):** se elige uno de los menús guardados
+    en Ajustes.
+3.  **Jugadores:** se escriben los dos nombres o se eligen perfiles que ya
+    jugaron.
+4.  **Contador en vivo:** una salpicadura de condimento abre la partida.
+    Cada fila es una comida del menú y cada jugador toca su lado cuando se
+    come una porción (con botón para deshacer). Un reloj muestra cuánto va
+    durando la partida.
+5.  **Resultado:** al terminar, la salpicadura toma el color del ganador;
+    se muestran las pilas de platos, lo que más comió cada uno y la
+    revancha con el mismo menú.
+6.  **Historial y perfiles:** partidas anteriores, récords y la página de
+    cada persona (estadísticas, comida favorita, editar nombre y avatar).
+7.  **Ajustes:** menús, catálogo y puntos por porción, almacenamiento y
+    respaldo.
 
-Cada paso es una ruta (por ejemplo `/`, `/match/new`,
-`/match/:id/select`, `/match/:id/confirm`, `/match/:id/result`,
-`/history`, `/settings`), de modo que recargar la página o usar el botón
-"atrás" del navegador no pierda el contexto.
+Un menú hamburguesa permite ir a Inicio, Nueva partida, Historial,
+Perfiles (con acceso directo a cada persona) y Ajustes. Las rutas son
+`/`, `/match/new`, `/match/:id/play`, `/match/:id/result`, `/history`,
+`/profiles`, `/profiles/:id`, `/settings` y `/settings/menus/:id`;
+recargar o usar "atrás" no pierde el contexto.
 
 ## 4. Arquitectura hexagonal
 
@@ -247,15 +258,18 @@ se podrían reutilizar en un cliente nativo.
 
 Almacenes (*object stores*) de IndexedDB definidos con Dexie:
 
--   `players`: `id`, `display_name`, `created_at`.
--   `foods`: `id`, `name`, `points_per_portion`, `is_custom`.
--   `matches`: `id`, `started_at`, `finished_at`, `status`; índice por
-    `started_at` para el historial.
+-   `players`: `id`, `display_name`, `name_key` (único), `avatar`,
+    `created_at`, `last_played_at`.
+-   `foods`: `id`, `name`, `emoji`, `points_per_portion`, `is_custom`.
+-   `menus`: `id`, `name`, `emoji`, `food_ids`.
+-   `matches`: `id`, `started_at`, `finished_at`, `status`
+    (`playing` o `finished`) y `menu`, una copia del menú con los puntos
+    de cada comida al empezar; índice por `started_at` para el historial.
 -   `match_players`: `match_id`, `player_id` y nombre guardado como
     snapshot.
--   `food_selections`: `id`, `match_id`, `player_id`, `food_id`,
-    `planned_quantity`, `consumed_quantity`,
-    `points_per_portion_snapshot`; índice por `match_id`.
+-   `food_selections`: `id`, `match_id`, `slot`, `food_id`,
+    `consumed_quantity`, `points_per_portion_snapshot`; índice por
+    `match_id`.
 
 Ejemplo de definición:
 
@@ -338,8 +352,8 @@ datos.
 4.  Configurar Dexie: esquema inicial, versiones y catálogo semilla.
 5.  Implementar adaptadores Dexie y pruebas de persistencia con
     `fake-indexeddb`.
-6.  Construir páginas y rutas: Inicio, Jugadores, Selección,
-    Confirmación, Resultado, Historial y Configuración.
+6.  Construir páginas y rutas: Inicio, Menú, Jugadores, Contador,
+    Resultado, Historial, Perfiles y Ajustes.
 7.  Conectar la UI a casos de uso mediante hooks y el contenedor de
     dependencias.
 8.  Añadir `vite-plugin-pwa`: manifest, íconos y service worker; añadir

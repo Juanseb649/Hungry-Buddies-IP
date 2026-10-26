@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { DomainError, type Match } from '../entities/match'
 import * as rules from '../rules'
-import { calculateMatchResult } from '../scoring'
+import { calculateMatchResult, favoriteOf } from '../scoring'
 import type { FoodItem } from '../../../food-catalog/domain/food-item'
+import type { Menu } from '../../../food-catalog/domain/menu'
 
 const burger: FoodItem = { id: 'burger', name: 'Hamburguesa', emoji: '🍔', pointsPerPortion: 3, isCustom: false }
 const fries: FoodItem = { id: 'fries', name: 'Papas', emoji: '🍟', pointsPerPortion: 1, isCustom: false }
+const taco: FoodItem = { id: 'taco', name: 'Taco', emoji: '🌮', pointsPerPortion: 1, isCustom: false }
+const catalog = [burger, fries, taco]
+const fastFood: Menu = { id: 'fast', name: 'Comida rápida', emoji: '🍔', foodIds: ['burger', 'fries', 'ya-no-existe'] }
 
 let n = 0
 const newId = () => `id-${++n}`
@@ -14,15 +18,29 @@ function newMatch(): Match {
   return rules.createMatch({
     id: 'm1',
     now: '2026-10-26T12:00:00.000Z',
+    menu: rules.snapshotMenu(fastFood, catalog),
     players: { a: { playerId: 'p1', displayName: ' Ana ' }, b: { playerId: 'p2', displayName: 'Luis' } },
   })
 }
 
+describe('menú', () => {
+  it('congela las comidas que siguen en el catálogo, con sus puntos actuales', () => {
+    const snap = rules.snapshotMenu(fastFood, catalog)
+    expect(snap.items.map((i) => i.foodId)).toEqual(['burger', 'fries'])
+    expect(snap.items[0].pointsPerPortion).toBe(3)
+  })
+
+  it('rechaza un menú sin comidas disponibles', () => {
+    expect(() => rules.snapshotMenu({ ...fastFood, foodIds: ['nada'] }, catalog)).toThrow(DomainError)
+  })
+})
+
 describe('createMatch', () => {
-  it('normaliza nombres y arranca en planeación', () => {
+  it('normaliza nombres y arranca contando', () => {
     const m = newMatch()
     expect(m.players.a.displayName).toBe('Ana')
-    expect(m.status).toBe('planning')
+    expect(m.status).toBe('playing')
+    expect(m.selections).toEqual([])
   })
 
   it('rechaza nombres vacíos o repetidos', () => {
@@ -32,79 +50,57 @@ describe('createMatch', () => {
   })
 })
 
-describe('cantidades', () => {
-  it('rechaza negativas, no múltiplos de media y excesivas', () => {
+describe('contador', () => {
+  it('rechaza cantidades negativas, no múltiplos de media y excesivas', () => {
     const m = newMatch()
-    expect(() => rules.setPlannedQuantity(m, 'a', burger, -1, newId)).toThrow(DomainError)
-    expect(() => rules.setPlannedQuantity(m, 'a', burger, 1.3, newId)).toThrow(DomainError)
-    expect(() => rules.setPlannedQuantity(m, 'a', burger, 51, newId)).toThrow(DomainError)
+    expect(() => rules.setConsumedQuantity(m, 'a', 'burger', -1, newId)).toThrow(DomainError)
+    expect(() => rules.setConsumedQuantity(m, 'a', 'burger', 1.3, newId)).toThrow(DomainError)
+    expect(() => rules.setConsumedQuantity(m, 'a', 'burger', 51, newId)).toThrow(DomainError)
   })
 
-  it('poner 0 en el plan quita la comida', () => {
-    let m = rules.setPlannedQuantity(newMatch(), 'a', burger, 2, newId)
-    m = rules.setPlannedQuantity(m, 'a', burger, 0, newId)
+  it('solo cuenta comidas del menú de la partida', () => {
+    expect(() => rules.setConsumedQuantity(newMatch(), 'a', 'taco', 1, newId)).toThrow('no está en el menú')
+  })
+
+  it('poner 0 quita la comida del marcador', () => {
+    let m = rules.setConsumedQuantity(newMatch(), 'a', 'burger', 2, newId)
+    m = rules.setConsumedQuantity(m, 'a', 'burger', 0, newId)
     expect(m.selections).toHaveLength(0)
   })
-})
 
-describe('flujo completo y puntuación', () => {
-  function planned(): Match {
+  it('suma puntos con el snapshot del menú y elige ganador', () => {
     let m = newMatch()
-    m = rules.setPlannedQuantity(m, 'a', burger, 2, newId) // 6 pts
-    m = rules.setPlannedQuantity(m, 'b', fries, 4, newId) // 4 pts
-    return m
-  }
-
-  it('no deja empezar a comer si un jugador no eligió nada', () => {
-    const m = rules.setPlannedQuantity(newMatch(), 'a', burger, 1, newId)
-    expect(rules.canStartEating(m)).toBe(false)
-    expect(() => rules.startEating(m)).toThrow(DomainError)
-  })
-
-  it('lo consumido arranca igual a lo planeado', () => {
-    const m = rules.startEating(planned())
-    expect(m.selections.every((s) => s.consumedQuantity === s.plannedQuantity)).toBe(true)
-    expect(calculateMatchResult(m).winner).toBe('a')
-  })
-
-  it('gana quien más puntos come de verdad, no quien más planea', () => {
-    let m = rules.startEating(planned())
-    m = rules.setConsumedQuantity(m, 'a', burger, 1, newId) // 3
-    m = rules.setConsumedQuantity(m, 'b', burger, 0.5, newId) // 4 + 1.5, no estaba planeado
-    m = rules.finishMatch(m, '2026-10-26T13:00:00.000Z')
-    const result = calculateMatchResult(m)
+    m = rules.setConsumedQuantity(m, 'a', 'burger', 1, newId) // 3
+    m = rules.setConsumedQuantity(m, 'b', 'fries', 4, newId) // 4
+    m = rules.setConsumedQuantity(m, 'b', 'burger', 0.5, newId) // 1.5
+    const result = calculateMatchResult(rules.finishMatch(m, '2026-10-26T13:00:00.000Z'))
     expect(result.points).toEqual({ a: 3, b: 5.5 })
-    expect(result.plannedPoints).toEqual({ a: 6, b: 4 })
+    expect(result.portions).toEqual({ a: 1, b: 4.5 })
     expect(result.winner).toBe('b')
+    expect(favoriteOf(m, 'b')?.foodId).toBe('fries')
   })
 
   it('detecta empate', () => {
-    let m = rules.startEating(planned())
-    m = rules.setConsumedQuantity(m, 'a', burger, 1, newId) // 3
-    m = rules.setConsumedQuantity(m, 'b', fries, 3, newId) // 3
+    let m = newMatch()
+    m = rules.setConsumedQuantity(m, 'a', 'burger', 1, newId)
+    m = rules.setConsumedQuantity(m, 'b', 'fries', 3, newId)
     expect(calculateMatchResult(m).winner).toBe('tie')
   })
+})
 
-  it('usa el snapshot de puntos aunque cambie el catálogo', () => {
-    const m = rules.startEating(planned())
-    const pricier = { ...burger, pointsPerPortion: 10 }
-    const next = rules.setConsumedQuantity(m, 'a', pricier, 2, newId)
-    expect(calculateMatchResult(next).points.a).toBe(6)
+describe('terminar', () => {
+  it('no deja terminar si nadie ha comido', () => {
+    expect(rules.canFinish(newMatch())).toBe(false)
+    expect(() => rules.finishMatch(newMatch(), 'x')).toThrow(DomainError)
   })
 
-  it('una partida cerrada no se puede modificar', () => {
-    const m = rules.finishMatch(rules.startEating(planned()), '2026-10-26T13:00:00.000Z')
-    expect(() => rules.setConsumedQuantity(m, 'a', burger, 5, newId)).toThrow(DomainError)
-    expect(() => rules.setPlannedQuantity(m, 'a', burger, 5, newId)).toThrow(DomainError)
+  it('una partida terminada no se puede modificar', () => {
+    const m = rules.finishMatch(
+      rules.setConsumedQuantity(newMatch(), 'a', 'burger', 1, newId),
+      '2026-10-26T13:00:00.000Z',
+    )
+    expect(m.status).toBe('finished')
+    expect(() => rules.setConsumedQuantity(m, 'a', 'burger', 5, newId)).toThrow(DomainError)
     expect(() => rules.finishMatch(m, 'x')).toThrow(DomainError)
-  })
-
-  it('volver al plan descarta lo no planeado', () => {
-    let m = rules.startEating(planned())
-    m = rules.setConsumedQuantity(m, 'a', fries, 2, newId)
-    m = rules.backToPlanning(m)
-    expect(m.status).toBe('planning')
-    expect(m.selections).toHaveLength(2)
-    expect(m.selections.every((s) => s.consumedQuantity === null)).toBe(true)
   })
 })

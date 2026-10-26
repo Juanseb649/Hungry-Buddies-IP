@@ -1,12 +1,6 @@
 import type { FoodItem } from '../../food-catalog/domain/food-item'
-import {
-  DomainError,
-  PLAYER_SLOTS,
-  type FoodSelection,
-  type Match,
-  type MatchPlayer,
-  type PlayerSlot,
-} from './entities/match'
+import { menuFoods, type Menu } from '../../food-catalog/domain/menu'
+import { DomainError, type Match, type MatchMenu, type MatchPlayer, type PlayerSlot } from './entities/match'
 
 export const QUANTITY_STEP = 0.5
 export const MAX_QUANTITY = 50
@@ -16,14 +10,18 @@ export function normalizeName(name: string): string {
   return name.trim().replace(/\s+/g, ' ')
 }
 
+export function validateDisplayName(name: string): string | null {
+  const n = normalizeName(name)
+  if (!n) return 'Escribe un nombre o apodo.'
+  if (n.length > MAX_NAME_LENGTH) return `El nombre debe tener ${MAX_NAME_LENGTH} caracteres o menos.`
+  return null
+}
+
 export function validatePlayerNames(a: string, b: string): string | null {
-  const na = normalizeName(a)
-  const nb = normalizeName(b)
-  if (!na || !nb) return 'Escribe un nombre o apodo para cada jugador.'
-  if (na.length > MAX_NAME_LENGTH || nb.length > MAX_NAME_LENGTH) {
-    return `Los nombres deben tener ${MAX_NAME_LENGTH} caracteres o menos.`
-  }
-  if (na.toLocaleLowerCase() === nb.toLocaleLowerCase()) {
+  if (!normalizeName(a) || !normalizeName(b)) return 'Escribe un nombre o apodo para cada jugador.'
+  const error = validateDisplayName(a) ?? validateDisplayName(b)
+  if (error) return error
+  if (normalizeName(a).toLocaleLowerCase() === normalizeName(b).toLocaleLowerCase()) {
     return 'Usa nombres distintos para que se sepa quién es quién.'
   }
   return null
@@ -41,18 +39,35 @@ export function validateQuantity(quantity: number): void {
   }
 }
 
+/** Congela el menú con los puntos actuales del catálogo. */
+export function snapshotMenu(menu: Menu, catalog: FoodItem[]): MatchMenu {
+  const items = menuFoods(menu, catalog).map((f) => ({
+    foodId: f.id,
+    name: f.name,
+    emoji: f.emoji,
+    pointsPerPortion: f.pointsPerPortion,
+  }))
+  if (items.length === 0) {
+    throw new DomainError('Ese menú se quedó sin comidas. Edítalo en Ajustes antes de jugar.')
+  }
+  return { id: menu.id, name: menu.name, emoji: menu.emoji, items }
+}
+
 export function createMatch(input: {
   id: string
   now: string
+  menu: MatchMenu
   players: Record<PlayerSlot, Omit<MatchPlayer, 'slot'>>
 }): Match {
   const error = validatePlayerNames(input.players.a.displayName, input.players.b.displayName)
   if (error) throw new DomainError(error)
+  if (input.menu.items.length === 0) throw new DomainError('El menú necesita al menos una comida.')
   return {
     id: input.id,
     startedAt: input.now,
     finishedAt: null,
-    status: 'planning',
+    status: 'playing',
+    menu: input.menu,
     players: {
       a: { slot: 'a', ...input.players.a, displayName: normalizeName(input.players.a.displayName) },
       b: { slot: 'b', ...input.players.b, displayName: normalizeName(input.players.b.displayName) },
@@ -61,110 +76,57 @@ export function createMatch(input: {
   }
 }
 
-function assertStatus(match: Match, status: Match['status'], message: string): void {
-  if (match.status !== status) throw new DomainError(message)
+export function consumedOf(match: Match, slot: PlayerSlot, foodId: string): number {
+  return match.selections.find((s) => s.slot === slot && s.foodId === foodId)?.consumedQuantity ?? 0
 }
 
-function findSelection(match: Match, slot: PlayerSlot, foodId: string): FoodSelection | undefined {
-  return match.selections.find((s) => s.slot === slot && s.foodId === foodId)
-}
-
-function newSelection(id: string, slot: PlayerSlot, food: FoodItem): FoodSelection {
-  return {
-    id,
-    slot,
-    foodId: food.id,
-    foodName: food.name,
-    foodEmoji: food.emoji,
-    pointsPerPortionSnapshot: food.pointsPerPortion,
-    plannedQuantity: 0,
-    consumedQuantity: null,
-  }
-}
-
-/** Fija cuánto planea comer un jugador de un alimento. 0 lo quita del plan. */
-export function setPlannedQuantity(
+/** Fija cuántas porciones de una comida del menú lleva un jugador. 0 la quita. */
+export function setConsumedQuantity(
   match: Match,
   slot: PlayerSlot,
-  food: FoodItem,
+  foodId: string,
   quantity: number,
   newId: () => string,
 ): Match {
-  assertStatus(match, 'planning', 'El plan ya está cerrado: ahora se confirma lo que se comió.')
+  if (match.status !== 'playing') {
+    throw new DomainError('La partida ya terminó: el marcador no se puede cambiar.')
+  }
   validateQuantity(quantity)
-  const existing = findSelection(match, slot, food.id)
+  const item = match.menu.items.find((i) => i.foodId === foodId)
+  if (!item) throw new DomainError('Esa comida no está en el menú de esta partida.')
+  const existing = match.selections.find((s) => s.slot === slot && s.foodId === foodId)
   if (quantity === 0) {
     return { ...match, selections: match.selections.filter((s) => s !== existing) }
   }
   if (existing) {
     return {
       ...match,
-      selections: match.selections.map((s) => (s === existing ? { ...s, plannedQuantity: quantity } : s)),
+      selections: match.selections.map((s) => (s === existing ? { ...s, consumedQuantity: quantity } : s)),
     }
   }
   return {
     ...match,
-    selections: [...match.selections, { ...newSelection(newId(), slot, food), plannedQuantity: quantity }],
+    selections: [
+      ...match.selections,
+      {
+        id: newId(),
+        slot,
+        foodId,
+        foodName: item.name,
+        foodEmoji: item.emoji,
+        pointsPerPortionSnapshot: item.pointsPerPortion,
+        consumedQuantity: quantity,
+      },
+    ],
   }
 }
 
-export function canStartEating(match: Match): boolean {
-  return PLAYER_SLOTS.every((slot) => match.selections.some((s) => s.slot === slot))
-}
-
-/** Cierra el plan. Lo consumido arranca igual a lo planeado. */
-export function startEating(match: Match): Match {
-  assertStatus(match, 'planning', 'Esta partida ya no está en la fase de plan.')
-  if (!canStartEating(match)) {
-    throw new DomainError('Cada jugador necesita al menos una comida en su plan.')
-  }
-  return {
-    ...match,
-    status: 'eating',
-    selections: match.selections.map((s) => ({ ...s, consumedQuantity: s.plannedQuantity })),
-  }
-}
-
-/** Vuelve al plan; se descartan los ajustes de consumo y lo no planeado. */
-export function backToPlanning(match: Match): Match {
-  assertStatus(match, 'eating', 'Solo se puede volver al plan antes de cerrar la partida.')
-  return {
-    ...match,
-    status: 'planning',
-    selections: match.selections
-      .filter((s) => s.plannedQuantity > 0)
-      .map((s) => ({ ...s, consumedQuantity: null })),
-  }
-}
-
-/** Registra cuánto comió de verdad. Permite sumar comida que no estaba planeada. */
-export function setConsumedQuantity(
-  match: Match,
-  slot: PlayerSlot,
-  food: FoodItem,
-  quantity: number,
-  newId: () => string,
-): Match {
-  assertStatus(match, 'eating', 'Solo se puede ajustar lo comido mientras la partida está abierta.')
-  validateQuantity(quantity)
-  const existing = findSelection(match, slot, food.id)
-  if (!existing) {
-    if (quantity === 0) return match
-    return {
-      ...match,
-      selections: [...match.selections, { ...newSelection(newId(), slot, food), consumedQuantity: quantity }],
-    }
-  }
-  if (quantity === 0 && existing.plannedQuantity === 0) {
-    return { ...match, selections: match.selections.filter((s) => s !== existing) }
-  }
-  return {
-    ...match,
-    selections: match.selections.map((s) => (s === existing ? { ...s, consumedQuantity: quantity } : s)),
-  }
+export function canFinish(match: Match): boolean {
+  return match.status === 'playing' && match.selections.some((s) => s.consumedQuantity > 0)
 }
 
 export function finishMatch(match: Match, now: string): Match {
-  assertStatus(match, 'eating', 'La partida tiene que estar en la fase de confirmación para cerrarla.')
+  if (match.status !== 'playing') throw new DomainError('Esta partida ya terminó.')
+  if (!canFinish(match)) throw new DomainError('Nadie ha comido nada todavía.')
   return { ...match, status: 'finished', finishedAt: now }
 }

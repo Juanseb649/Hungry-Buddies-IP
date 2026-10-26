@@ -1,7 +1,7 @@
 # Hungry Buddies
 
-Un duelo de comida entre dos amigos: cada uno elige lo que se va a comer,
-después confirma lo que de verdad se comió, y gana la pila de platos más alta.
+Un duelo de comida entre dos amigos: eligen un menú, cada uno cuenta en vivo
+lo que se va comiendo, y gana la pila de platos más alta.
 
 App web local-first (sin cuentas ni backend), instalable como PWA y pensada
 para desplegarse en Vercel.
@@ -39,18 +39,19 @@ src/
       domain/                entidades, reglas, puntuación, puertos y casos de uso
       application/hooks/     useMatch: conecta la UI con los casos de uso
       data/dexie/            adaptadores de repositorio sobre IndexedDB
-      presentation/          páginas: inicio, jugadores, selección, confirmación, resultado
-    food-catalog/            catálogo, validación y su repositorio Dexie
+      presentation/          páginas: inicio, nueva partida (menú → jugadores), contador, resultado
+    food-catalog/            catálogo, menús guardados y sus repositorios Dexie
     history/                 estadísticas e historial
-    settings/                catálogo editable, almacenamiento y respaldo
+    profiles/                perfiles: estadísticas por persona, nombre y avatar
+    settings/                menús, catálogo editable, almacenamiento y respaldo
   shared/
-    database/                esquema Dexie (versionado), semilla y respaldo JSON
-    theme/                   tokens de diseño y estilos
-    components/              stepper, diálogos, barra inferior
+    database/                esquema Dexie (versionado, con migraciones), semilla y respaldo JSON
+    theme/                   tokens de diseño, estilos y movimiento (motion.css)
+    components/              stepper, diálogos, barra inferior, bienvenida y salpicadura
 ```
 
-Rutas: `/`, `/match/new`, `/match/:id/select`, `/match/:id/confirm`,
-`/match/:id/result`, `/history`, `/settings`.
+Rutas: `/`, `/match/new`, `/match/:id/play`, `/match/:id/result`, `/history`,
+`/profiles`, `/profiles/:id`, `/settings`, `/settings/menus/:id`.
 
 La dirección visual está en [docs/DESIGN.md](docs/DESIGN.md).
 

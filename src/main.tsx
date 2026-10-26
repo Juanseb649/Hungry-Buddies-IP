@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router'
 import { registerSW } from 'virtual:pwa-register'
@@ -8,8 +8,20 @@ import '@fontsource/figtree/latin-600.css'
 import '@fontsource/figtree/latin-800.css'
 import './shared/theme/tokens.css'
 import './shared/theme/app.css'
+import './shared/theme/motion.css'
 import { ContainerContext, createContainer } from './app/container'
 import { router } from './app/router'
+import { LaunchSplash } from './shared/components/splash'
+
+function App() {
+  const [splash, setSplash] = useState(true)
+  return (
+    <>
+      <RouterProvider router={router} />
+      {splash && <LaunchSplash onDone={() => setSplash(false)} />}
+    </>
+  )
+}
 
 registerSW({ immediate: true })
 
@@ -22,7 +34,7 @@ container.db
     root.render(
       <StrictMode>
         <ContainerContext value={container}>
-          <RouterProvider router={router} />
+          <App />
         </ContainerContext>
       </StrictMode>,
     ),

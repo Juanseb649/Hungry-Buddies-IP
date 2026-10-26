@@ -7,60 +7,21 @@ import { formatPoints } from '../../../../shared/utils/format'
 export const SLOT_COLOR_NAME: Record<PlayerSlot, string> = { a: 'Ketchup', b: 'Mostaza' }
 
 export function matchPath(match: Pick<Match, 'id' | 'status'>): string {
-  switch (match.status) {
-    case 'planning':
-      return `/match/${match.id}/select`
-    case 'eating':
-      return `/match/${match.id}/confirm`
-    case 'finished':
-      return `/match/${match.id}/result`
-  }
+  return match.status === 'finished' ? `/match/${match.id}/result` : `/match/${match.id}/play`
 }
 
-export function Scoreboard({ match, caption }: { match: Match; caption: string }) {
+export function Scoreboard({ match, caption }: { match: Match; caption?: string }) {
   const { points } = calculateMatchResult(match)
   return (
-    <section className="scoreboard" aria-label={`Marcador: ${caption}`}>
+    <section className="scoreboard" aria-label="Marcador" aria-live="polite">
       {PLAYER_SLOTS.map((slot) => (
         <div key={slot} className="scoreboard__side" data-slot={slot}>
           <span className="scoreboard__name">{match.players[slot].displayName}</span>
           <span className="scoreboard__points">{formatPoints(points[slot])}</span>
         </div>
       ))}
-      <p className="scoreboard__caption">{caption}</p>
+      {caption && <p className="scoreboard__caption">{caption}</p>}
     </section>
-  )
-}
-
-export function PlayerToggle({
-  match,
-  active,
-  onChange,
-  count,
-}: {
-  match: Match
-  active: PlayerSlot
-  onChange: (slot: PlayerSlot) => void
-  /** Cantidad de comidas por jugador, para mostrarla en la pestaña. */
-  count: (slot: PlayerSlot) => number
-}) {
-  return (
-    <div className="player-toggle" role="tablist" aria-label="Jugador">
-      {PLAYER_SLOTS.map((slot) => (
-        <button
-          key={slot}
-          type="button"
-          role="tab"
-          aria-selected={active === slot}
-          className="player-toggle__tab"
-          data-slot={slot}
-          onClick={() => onChange(slot)}
-        >
-          <span>{match.players[slot].displayName}</span>
-          <span className="player-toggle__count">{count(slot)}</span>
-        </button>
-      ))}
-    </div>
   )
 }
 
@@ -123,7 +84,7 @@ export function MatchNotFound({ message }: { message: string }) {
     <div className="page">
       <h1 className="page-title">Partida no encontrada</h1>
       <p>{message}</p>
-      <Link className="btn btn--primary" to="/">
+      <Link className="btn btn--primary" to="/" viewTransition>
         Ir al inicio
       </Link>
     </div>

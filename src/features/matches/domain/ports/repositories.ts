@@ -11,13 +11,19 @@ export interface MatchRepository {
 export interface Player {
   id: string
   displayName: string
+  /** Emoji que identifica a la persona en su perfil. */
+  avatar: string
   createdAt: string
 }
 
 export interface PlayerRepository {
   findOrCreate(displayName: string): Promise<Player>
-  /** Nombres usados recientemente, para sugerirlos al crear partida. */
+  findById(id: string): Promise<Player | undefined>
+  findByName(displayName: string): Promise<Player | undefined>
+  /** Más recientes primero. */
+  list(): Promise<Player[]>
   listRecent(limit: number): Promise<Player[]>
+  update(player: Player): Promise<void>
 }
 
 export interface Clock {
@@ -27,3 +33,5 @@ export interface Clock {
 export interface IdGenerator {
   next(): string
 }
+
+export const AVATARS = ['🐻', '🦊', '🐼', '🐯', '🐸', '🐵', '🐶', '🐱', '🐷', '🐰', '🦁', '🐙', '🦖', '👽', '🤠', '🥷']

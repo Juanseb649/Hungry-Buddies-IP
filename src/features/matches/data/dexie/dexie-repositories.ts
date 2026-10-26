@@ -1,6 +1,12 @@
-import type { HungryBuddiesDb, MatchRow } from '../../../../shared/database/db'
+import type { HungryBuddiesDb, MatchRow, PlayerRow } from '../../../../shared/database/db'
 import type { FoodSelection, Match, MatchPlayer } from '../../domain/entities/match'
-import type { IdGenerator, MatchRepository, Player, PlayerRepository } from '../../domain/ports/repositories'
+import {
+  AVATARS,
+  type IdGenerator,
+  type MatchRepository,
+  type Player,
+  type PlayerRepository,
+} from '../../domain/ports/repositories'
 
 export class DexieMatchRepository implements MatchRepository {
   constructor(private readonly db: HungryBuddiesDb) {}
@@ -13,6 +19,7 @@ export class DexieMatchRepository implements MatchRepository {
         started_at: match.startedAt,
         finished_at: match.finishedAt,
         status: match.status,
+        menu: match.menu,
       })
       await db.match_players.bulkPut(
         Object.values(match.players).map((p) => ({
@@ -31,7 +38,6 @@ export class DexieMatchRepository implements MatchRepository {
           food_id: s.foodId,
           food_name: s.foodName,
           food_emoji: s.foodEmoji,
-          planned_quantity: s.plannedQuantity,
           consumed_quantity: s.consumedQuantity,
           points_per_portion_snapshot: s.pointsPerPortionSnapshot,
         })),
@@ -82,7 +88,6 @@ export class DexieMatchRepository implements MatchRepository {
         foodId: s.food_id,
         foodName: s.food_name,
         foodEmoji: s.food_emoji,
-        plannedQuantity: s.planned_quantity,
         consumedQuantity: s.consumed_quantity,
         pointsPerPortionSnapshot: s.points_per_portion_snapshot,
       }),
@@ -92,11 +97,19 @@ export class DexieMatchRepository implements MatchRepository {
       startedAt: row.started_at,
       finishedAt: row.finished_at,
       status: row.status,
+      menu: row.menu,
       players,
       selections,
     }
   }
 }
+
+const toPlayer = (r: PlayerRow): Player => ({
+  id: r.id,
+  displayName: r.display_name,
+  avatar: r.avatar,
+  createdAt: r.created_at,
+})
 
 export class DexiePlayerRepository implements PlayerRepository {
   constructor(
@@ -112,17 +125,45 @@ export class DexiePlayerRepository implements PlayerRepository {
       const now = this.now()
       const existing = await db.players.where('name_key').equals(nameKey).first()
       if (existing) {
-        await db.players.update(existing.id, { display_name: displayName, last_played_at: now })
-        return { id: existing.id, displayName, createdAt: existing.created_at }
+        await db.players.update(existing.id, { last_played_at: now })
+        return toPlayer(existing)
       }
-      const row = { id: this.ids.next(), display_name: displayName, name_key: nameKey, created_at: now, last_played_at: now }
+      const row: PlayerRow = {
+        id: this.ids.next(),
+        display_name: displayName,
+        name_key: nameKey,
+        avatar: AVATARS[(await db.players.count()) % AVATARS.length],
+        created_at: now,
+        last_played_at: now,
+      }
       await db.players.add(row)
-      return { id: row.id, displayName, createdAt: now }
+      return toPlayer(row)
     })
   }
 
+  async findById(id: string): Promise<Player | undefined> {
+    const row = await this.db.players.get(id)
+    return row && toPlayer(row)
+  }
+
+  async findByName(displayName: string): Promise<Player | undefined> {
+    const row = await this.db.players.where('name_key').equals(displayName.toLocaleLowerCase()).first()
+    return row && toPlayer(row)
+  }
+
+  async list(): Promise<Player[]> {
+    return (await this.db.players.orderBy('last_played_at').reverse().toArray()).map(toPlayer)
+  }
+
   async listRecent(limit: number): Promise<Player[]> {
-    const rows = await this.db.players.orderBy('last_played_at').reverse().limit(limit).toArray()
-    return rows.map((r) => ({ id: r.id, displayName: r.display_name, createdAt: r.created_at }))
+    return (await this.db.players.orderBy('last_played_at').reverse().limit(limit).toArray()).map(toPlayer)
+  }
+
+  async update(player: Player): Promise<void> {
+    await this.db.players.update(player.id, {
+      display_name: player.displayName,
+      name_key: player.displayName.toLocaleLowerCase(),
+      avatar: player.avatar,
+    })
   }
 }

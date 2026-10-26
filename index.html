@@ -10,6 +10,11 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
     <title>Hungry Buddies</title>
+    <style>
+      /* Evita un destello blanco antes de que cargue el CSS. */
+      html { background: #e6efea; }
+      @media (prefers-color-scheme: dark) { html { background: #16211f; } }
+    </style>
   </head>
   <body>
     <div id="root"></div>

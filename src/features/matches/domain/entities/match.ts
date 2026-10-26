@@ -2,7 +2,7 @@ export type PlayerSlot = 'a' | 'b'
 
 export const PLAYER_SLOTS: readonly PlayerSlot[] = ['a', 'b']
 
-export type MatchStatus = 'planning' | 'eating' | 'finished'
+export type MatchStatus = 'playing' | 'finished'
 
 export interface MatchPlayer {
   slot: PlayerSlot
@@ -11,18 +11,30 @@ export interface MatchPlayer {
   displayName: string
 }
 
+/** Copia de una comida del menú tal como estaba al empezar la partida. */
+export interface MenuItemSnapshot {
+  foodId: string
+  name: string
+  emoji: string
+  pointsPerPortion: number
+}
+
+/** El menú elegido para la partida, congelado: editar ajustes no cambia partidas viejas. */
+export interface MatchMenu {
+  id: string
+  name: string
+  emoji: string
+  items: MenuItemSnapshot[]
+}
+
 export interface FoodSelection {
   id: string
   slot: PlayerSlot
   foodId: string
-  /** Snapshots del catálogo: editar el catálogo no cambia partidas viejas. */
   foodName: string
   foodEmoji: string
   pointsPerPortionSnapshot: number
-  /** 0 cuando el alimento no estaba planeado y se agregó al confirmar. */
-  plannedQuantity: number
-  /** null hasta que empieza la fase de confirmación. */
-  consumedQuantity: number | null
+  consumedQuantity: number
 }
 
 export interface Match {
@@ -30,6 +42,7 @@ export interface Match {
   startedAt: string
   finishedAt: string | null
   status: MatchStatus
+  menu: MatchMenu
   players: Record<PlayerSlot, MatchPlayer>
   selections: FoodSelection[]
 }

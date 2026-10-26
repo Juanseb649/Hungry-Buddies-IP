@@ -1,0 +1,74 @@
+/* Ver docs/DESIGN.md */
+:root {
+  color-scheme: light;
+  --mesa: #e6efea;
+  --plato: #ffffff;
+  --tinta: #1e2940;
+  --tinta-suave: #4b5870;
+  --borde: #b7cbc1;
+  --ketchup: #d3263a;
+  --on-ketchup: #ffffff;
+  --mostaza: #e8b100;
+  --on-mostaza: #1e2940;
+  --peligro: #b3261e;
+  --ok: #1f7a4d;
+
+  --font-display: 'Bagel Fat One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --font-text: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Escala ~1.25 */
+  --t-xs: 0.875rem;
+  --t-s: 1rem;
+  --t-m: 1.25rem;
+  --t-l: 1.5625rem;
+  --t-xl: 1.9375rem;
+  --t-2xl: 2.4375rem;
+  --t-3xl: 3.8125rem;
+
+  --gutter: 16px;
+  --radius-plate: 18px;
+  --line: 2px;
+  --tap: 48px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --mesa: #16211f;
+    --plato: #22302d;
+    --tinta: #eef3f0;
+    --tinta-suave: #a9bab4;
+    --borde: #3a4d48;
+    --ketchup: #ff5a69;
+    --on-ketchup: #16211f;
+    --mostaza: #f5c431;
+    --on-mostaza: #16211f;
+    --peligro: #ff8a80;
+    --ok: #6fd6a0;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --mesa: #16211f;
+  --plato: #22302d;
+  --tinta: #eef3f0;
+  --tinta-suave: #a9bab4;
+  --borde: #3a4d48;
+  --ketchup: #ff5a69;
+  --on-ketchup: #16211f;
+  --mostaza: #f5c431;
+  --on-mostaza: #16211f;
+  --peligro: #ff8a80;
+  --ok: #6fd6a0;
+}
+
+[data-slot='a'] {
+  --p: var(--ketchup);
+  --on-p: var(--on-ketchup);
+}
+
+[data-slot='b'] {
+  --p: var(--mostaza);
+  --on-p: var(--on-mostaza);
+}

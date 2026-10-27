@@ -13,10 +13,7 @@ export function AppLayout() {
           Saltar al contenido
         </a>
         <header className="topbar">
-          <Link to="/" viewTransition className="topbar__brand" aria-label="Hungry Buddies, inicio">
-            <img src="/icon.svg" alt="" width={32} height={32} />
-            <span>Hungry Buddies</span>
-          </Link>
+          {/* El botón va a la izquierda, del mismo lado por donde sale el panel. */}
           <button
             type="button"
             className="burger"
@@ -29,6 +26,10 @@ export function AppLayout() {
             <span />
             <span />
           </button>
+          <Link to="/" viewTransition className="topbar__brand" aria-label="Hungry Buddies, inicio">
+            <img src="/icon.svg" alt="" width={32} height={32} />
+            <span>Hungry Buddies</span>
+          </Link>
         </header>
         <main id="main">
           <Outlet />

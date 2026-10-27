@@ -49,7 +49,7 @@ zona del pulgar.
 
 ```text
 +---------------------------+
-| Hungry Buddies       ajus |
+| ☰  Hungry Buddies         |  <- el menú lateral sale por la izquierda
 |                           |
 | [Ana 7]   vs   [Luis 5]   |  <- marcador, colores de jugador
 |                           |
@@ -66,7 +66,11 @@ zona del pulgar.
 ## Principios
 
 1. El color dice de quién es algo; nunca se usa como decoración.
-2. Formas de plato: radios grandes en lo que se toca, bordes de 2 px.
+2. Nada de tarjetas. Las listas (partidas, menús, comidas, perfiles) son
+   filas separadas por una línea de 2 px; lo elegido se marca con una barra
+   a la izquierda. Las cifras (récords, estadísticas) van sueltas bajo una
+   línea de tinta. Los radios grandes quedan solo para lo que se toca
+   (botones, contadores) y para los marcadores de color de cada jugador.
    Nada de sombras grises difusas.
 3. Botones grandes (mínimo 48 px) y texto que dice exactamente qué pasa.
 4. Los números siempre en Figtree 800; Bagel solo para palabras.
